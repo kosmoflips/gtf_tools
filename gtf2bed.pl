@@ -95,7 +95,7 @@ foreach my $infile (@infiles) {
 
 	my $ofile;
 	if ($cdna) { # [-cdna] is used
-		$ofile=$infile.'bed12';
+		$ofile=$infile.'.bed12';
 		open ($fh2, ">", $ofile);
 		# print command info
 		printf $fh2 "# cdna extracted from file %s\n", $infile;
@@ -103,11 +103,11 @@ foreach my $infile (@infiles) {
 	elsif (!$splitfile) { # # [-f] or [-a] is used AND save all matching features into one file
 	# code to open individual file for each feature is in later file-reading loop
 		if (!$get_all_feat) {
-			$ofile=$infile.'sub_feats.bed';
+			$ofile=$infile.'.sub_feats.bed';
 			open ($fh2, ">", $ofile);
 			printf $fh2 "# selected features `%s` extracted from file %s\n", (join ",", keys %$get_feat), $infile;
 		} else { # all features
-			$ofile=$infile.'bed';
+			$ofile=$infile.'.bed';
 			open ($fh2, ">", $ofile);
 			printf $fh2 "# bed converted from file %s\n", $infile;
 		}
