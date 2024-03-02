@@ -146,8 +146,6 @@ foreach my $infile (@infiles) {
 			# my ($thisid)=$c[8]=~/transcript_id "(.+?)"/;
 			my $thisid=$attr->{transcript_id};
 			# die $thisid;
-			# $thisid=~s/\|.+$//g; # do the match in 2 steps, in case trxid is the last element
-			# die $thisid;
 			if ($thisid ne $currtid->{trxid}) { # a new trxid
 				if ($currtid->{exon}) { # have currently saved exons
 					# print currently saved exon as one cdna
@@ -200,9 +198,13 @@ sub mk_bed_name {
 	# cdna mode, will ignore exon number info
 	my ($attr, $cdna, $exon)=@_; # attr, a H ref, parsed by &parse_gtf_attr()
 # die Dumper $attr;
-	my $line2=sprintf 'gene:%s.%d', $attr->{gene_id}, $attr->{gene_version}||0; # every line should have it
-	if ($exon) {
-		$line2.=sprintf ' exon:%s.%d/%d', $attr->{exon_id}||'NA', $attr->{exon_version}||0, $attr->{exon_number}||0;
+	my $line2=sprintf 'gene:%s/v%d', $attr->{gene_id}, $attr->{gene_version}||0; # every line should have it
+	if ($exon and !$cdna) { # only print exon info when not getting bed12-formatted cdna info
+		$line2.=' ';
+		if ($attr->{exon_id}) {
+			$line2.=sprintf 'exon:%s/v%d', $attr->{exon_id}||'NA', $attr->{exon_version}||0;
+		}
+		$line2.=sprintf ' exon_number:%d', $attr->{exon_number}||0;
 	}
 	# stringtie assembly GTF specific names
 	if ($attr->{reference_id}) {
@@ -212,22 +214,12 @@ sub mk_bed_name {
 	if ($attr->{ref_gene_id}) {
 		$line2.=sprintf ' gene_reference:%s', $attr->{ref_gene_id};
 	}
-	# die Dumper $cols;
 	if (!$cdna) { # non cDNA mode, not getting specific transcript, add trx name
-		$line2.=sprintf ' transcript:%s.%d', $attr->{transcript_id}||'NA', $attr->{transcript_version}||0;
+		$line2.=sprintf ' transcript:%s/v%d', $attr->{transcript_id}||'NA', $attr->{transcript_version}||0;
 	}
 	else {
-		$line2=sprintf '%s.%d cdna %s ', $attr->{transcript_id}, $attr->{transcript_version}||0, $line2; # add one space at end of string, to separate from bedtools' additional info <<< I don't remember the exact string format design here when relook, will figure out when i encounter formatting bugs in the future probably :3
-		# $line2 = sprintf '%s cdna chromosome:StringTie:%s:%s:%s:%s %s',
-		# 	$tid,
-		# 	$cols->[0],
-		# 	$cols->[3],
-		# 	$cols->[4],
-		# 	$cols->[6] eq '-'? 1 : -1,
-		# 	$line2;
+		$line2=sprintf '%s/v%d cdna %s ', $attr->{transcript_id}, $attr->{transcript_version}||0, $line2; # add one space at end of string, to separate from bedtools' additional info <<< I don't remember the exact string format design here when relook, will figure out when i encounter formatting bugs in the future probably :3
 	}
-	# die $line2;
-	# print $line2; <>;
 	return $line2;
 }
 
