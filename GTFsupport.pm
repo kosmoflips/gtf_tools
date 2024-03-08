@@ -13,6 +13,7 @@ our @EXPORT = qw/
 parse_gtf_attr
 stringtie_gtf_indexer
 ensembl_gtf_indexer
+map_genomic_pos_in_feat
 convert_trx2gen
 /;
 
@@ -165,6 +166,34 @@ sub ensembl_gtf_indexer {
 		}
 	}
 	return $idx;
+}
+
+# input: one genomic location, gene id, trx id, parsed ensembl GTF hash
+# output: if this location belongs to one or more feature, and its distance from the start of this type of element
+sub map_genomic_pos_in_feat {
+	my ($idx, $gid, $tid, $pos)=@_;
+	# $idx must be from &ensembl_gtf_indexer()
+	my $infeat={};
+	if ($idx->{$gid}{$tid}) { # this gene id and trx id are both found in index data
+		my $trx=$idx->{$gid}{$tid};
+		foreach my $feat (keys %{$trx}) { # loop all features, and see which feat this position belongs to
+			next if $feat eq 'info'; # internally reserved key
+			my $dist=0; # how far this position is relative to the start of element
+			foreach my $num (1..(scalar @{$trx->{$feat}}-1)) { # [0] is supposed to be empty
+				my $range=$trx->{$feat}[$num];
+				next if !$range;
+				if ($pos>=$range->[0] and $pos<=$range->[1]) { # this position is in this block
+					$dist+=$pos-$range->[0]+1;
+					$infeat->{$feat}=$dist;
+					last;
+				} else {
+					$dist+=$range->[1]-$range->[0]+1;
+				}
+			}
+		}
+	}
+	# else this gid/tid aren't found
+	return $infeat;
 }
 
 # convert transcript-coordinates to genomic

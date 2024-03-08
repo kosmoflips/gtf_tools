@@ -49,7 +49,6 @@ foreach my $file (@gtfs) {
 		print "  file must have a *.gtf extension, skip!\n";
 	}
 	my $idx=ensembl_gtf_indexer($file);
-	print Dumper $idx;exit;
 	my $ofile=$file.'.index.hash';
 	printf "  writing indexed coordinate info to %s . . .\n", $ofile;
 	nstore($idx, $ofile);
