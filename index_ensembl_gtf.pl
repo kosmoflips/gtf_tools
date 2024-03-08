@@ -12,9 +12,8 @@ use Getopt::Long;
 use lib ".";
 use GTFsupport;
 
-# index denovo assembly
-# input : denovo assembly generated GTF by stringtie
-# output : a perl hash file, listing all start/end coordinates for each row
+# index standard ensembl gtf file
+# output : a perl hash file
 
 my @gtfs;
 my $help;
@@ -35,7 +34,7 @@ index a Stringtie-generated GTF file for each exon.
  - extension must be *.gtf
 
 output file is a perl hash and can be read by Perl's Storable::retrieve,
-access the hash by key `_gene.id_` to view the data structure.
+access the hash by key `_sample_` to view the data structure.
 --------------------------------------------------
 
 HELP
@@ -49,7 +48,8 @@ foreach my $file (@gtfs) {
 	if ($file!~/\.gtf$/i) {
 		print "  file must have a *.gtf extension, skip!\n";
 	}
-	my $idx=stringtie_gtf_indexer($file);
+	my $idx=ensembl_gtf_indexer($file);
+	print Dumper $idx;exit;
 	my $ofile=$file.'.index.hash';
 	printf "  writing indexed coordinate info to %s . . .\n", $ofile;
 	nstore($idx, $ofile);

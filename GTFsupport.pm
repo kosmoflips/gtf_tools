@@ -12,6 +12,7 @@ use base 'Exporter';
 our @EXPORT = qw/
 parse_gtf_attr
 stringtie_gtf_indexer
+ensembl_gtf_indexer
 convert_trx2gen
 /;
 
@@ -42,19 +43,20 @@ sub parse_gtf_attr {
 	return $attr;
 }
 
-# IMPORTANT: stringtie GTF doesn't treat transcripts on reverse strand in biological order. so need to change them here.
-# confirmed with ensembl.org
 sub stringtie_gtf_indexer {
+# IMPORTANT: stringtie GTF doesn't treat transcripts on reverse strand in biological order. so need to change them here.
+# step [exon order correction] confirmed with ensembl.org
 	my ($gtffile)=@_; # must be a stringtie-generated GTF
 	open (my $fh, $gtffile);
 	# with sample data structure
 	my $idx={
-		"_gene.id_" => {
-			'transcript.id' => [
+		"_sample_" => {
+			'transcript_id' => [
 				[ 'chr', 'strand', 'ref_gene_id', 'ref_gene_name', 'ref_trx_id' ],
 				[ 'exon1_genome_start', 'genome_end', 'trx_start', 'trx_end' ],
 				[ 'exon2_genome_start', 'genome_end', 'trx_start', 'trx_end' ],
-			]
+			],
+			'#note'=>'key names are stringtie gene ID'
 		}
 	};
 	my $cp=0;
@@ -113,6 +115,56 @@ sub stringtie_gtf_indexer {
 		}
 	}
 	return $idx2;
+}
+
+sub ensembl_gtf_indexer {
+	my ($gtffile)=@_; # must be a stringtie-generated GTF
+	open (my $fh, $gtffile);
+	# with sample data structure
+	my $idx={
+		"_sample_" => {
+			'info' => "{ Hash ref for this gene as in GTF, Plus strand, start, end }",
+			'transcript' => {
+				"info" => "{ Hash ref for this transcript as in GTF, Plus start, end }",
+				"exon" => [ undef, ['start-exon1', 'end-exon1'], ['start-exon2', 'end-exon2'] ],
+				"CDS" => [ undef, ['start-exon1', 'end-exon1'], ['start-exon2', 'end-exon2'] ],
+				"start_codon" => [ undef, ['start', 'end'] ],
+				"stop_codon" => [ undef, ['start', 'end'] ],
+				"five_prime_utr" => [ undef, ['start', 'end'] ],
+				"three_prime_utr" => [ undef, ['start', 'end'] ],
+				"Selenocysteine" => "[untested. buggy]",
+			}
+		}
+	};
+	while (<$fh>) {
+		next if /^#/;
+		next if !/\S/;
+		chomp;
+		my @c=split /\t/;
+		my $attr=parse_gtf_attr($c[-1]);
+		# $attr->{gene_id} is the key link
+		# currently known types in both human/mouse are:
+		# gene   transcript   CDS   exon   five_prime_utr   start_codon   stop_codon   three_prime_utr   Selenocysteine; unsure about "Selenocysteine" but for now, treat it as another feature at same level as exon, start_codon, etc.
+		if ($c[2]=~/gene|transcript/) { # save gene meta only if the feature type is 'gene'
+			$attr->{start}=$c[3];
+			$attr->{end}=$c[4];
+			if ($c[2] eq 'gene') {
+				$attr->{strand}=$c[6] eq "+"?1:2;
+				$idx->{$attr->{gene_id}}{info}=dclone $attr;
+			}
+			else {
+				$idx->{$attr->{gene_id}}{$attr->{transcript_id}}{info}=dclone $attr;
+			}
+		} else {
+			# cds, exon, start_codon, stop_codon should have "exon_number" key.
+			my $inner_idx=1;
+			if ($attr->{exon_number} and $c[2]!~/_codon/) { # use exon_number as array index for non-codon items, just record start/end
+				$inner_idx=$attr->{exon_number};
+			}
+			$idx->{$attr->{gene_id}}{$attr->{transcript_id}}{$c[2]}[$inner_idx]=[$c[3], $c[4]];
+		}
+	}
+	return $idx;
 }
 
 # convert transcript-coordinates to genomic
