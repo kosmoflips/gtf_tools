@@ -12,17 +12,11 @@ use base 'Exporter';
 our @EXPORT = qw/
 parse_gtf_attr
 stringtie_gtf_indexer
-map_genomic_pos_in_feat
 convert_trx2gen
+convert_gen2trx
 /;
 
-our @EXPORT_OK = qw/
-connectdb
-get_exon_data_from_sqlite
-get_exon_data_from_exons
-map_exon_position
-conv_coord_trx2gen
-/;
+our @EXPORT_OK = qw//;
 
 our %EXPORT_TAGS = (
 # translation=>[qw//]
@@ -117,7 +111,7 @@ sub stringtie_gtf_indexer {
 	return $idx2;
 }
 
-
+=pod
 # input: one genomic location, gene id, trx id, parsed ensembl GTF hash
 # output: if this location belongs to one or more feature, and its distance from the start of this type of element
 sub map_genomic_pos_in_feat {
@@ -145,15 +139,17 @@ sub map_genomic_pos_in_feat {
 	# else this gid/tid aren't found
 	return $infeat;
 }
+=cut
 
-# convert transcript-coordinates to genomic
+
+# convert transcript-coordinates to genome
 # confirmed with ensembl.org
 sub convert_trx2gen {
-	my ($index, $trx_site, $strand)=@_; # index file must be an A-ref at the trx level, and must be produced by GTFsupport.pm's	"xxx_gtf_indexer"
-	# [ [known_trx_id], [g1,g2,t1,t2], [ exon2], [exon3], ...]
+	my ($exon_ref, $trx_site, $strand)=@_; # exon_ref file must be an A-ref at the $gtf->{ENSG}{ENST}{exon} level, and must be produced by GTFsupport.pm's	"xxx_gtf_indexer"
+	# $gtf->{ENSG}{ENST}{exon} = [ total_exon_length, [g1,g2,t1,t2], [g1,g2,t1,t2], [g1,g2,t1,t2], ...]
 	$strand=1 if !$strand;
-	foreach my $i (1..(scalar(@$index)-1)) {
-		my $list=$index->[$i];
+	foreach my $i (1..(scalar(@$exon_ref)-1)) {
+		my $list=$exon_ref->[$i];
 		my ($t1,$t2)=($list->[2]<$list->[3]?($list->[2],$list->[3]) : ($list->[3],$list->[2]));
 		if ($trx_site >= $t1 and $trx_site <=$t2) { # this site in inside the exon, do convertion
 			my ($g1,$g2)=($list->[0]<$list->[1]?($list->[0],$list->[1]) : ($list->[1],$list->[0]));
@@ -164,9 +160,28 @@ sub convert_trx2gen {
 			}
 		}
 	}
-	return -404; # incase there's error, when site doesn't in this exon data at all.
+	return 0; # error. since all position must be >= 1
 }
 
+
+# convert genome-coordinates to transcript
+sub convert_gen2trx {
+	my ($exon_ref, $gen_site, $strand)=@_; # exon_ref, same as &convert_trx2gen
+	$strand=1 if !$strand;
+	foreach my $i (1..(scalar(@$exon_ref)-1)) {
+		my $list=$exon_ref->[$i];
+		my ($g1,$g2)=($list->[0]<$list->[1]?($list->[0],$list->[1]) : ($list->[1],$list->[0]));
+		if ($gen_site >= $g1 and $gen_site <=$g2) { # this site in inside the exon, do convertion
+			my ($t1,$t2)=($list->[2]<$list->[3]?($list->[2],$list->[3]) : ($list->[3],$list->[2]));
+			if ($strand==1) { # forward
+				return ($t1+($gen_site-$g1));
+			} else { # reverse
+				return ($t1-($gen_site-$g2));
+			}
+		}
+	}
+	return 0; # all positions must >= 1
+}
 1;
 
 __END__

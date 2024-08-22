@@ -54,6 +54,29 @@ foreach my $file (@gtfs) {
 		print "  file must have a *.gtf extension, skip!\n";
 	}
 	my $idx=ensembl_gtf_indexer($file);
+	# map in-exon/in-cDNA positions per transcript
+	foreach my $gid (keys %{$idx}) {
+		# my $strand=$idx->{$gid}{info}{strand};
+		# next if $strand!=2;
+		next if $gid eq '_sample_';
+		foreach my $tid (keys %{$idx->{$gid}}) {
+			next if $tid eq 'info';
+			my $e_start=1;
+			my $exon2=[$idx->{$gid}{$tid}{exon}[0]];
+			foreach my $i (1..(scalar @{$idx->{$gid}{$tid}{exon}}-1)) { # [0] is total exon len
+				# plus/minus strands are the same calculation. because input exon A-ref is ordered by exon number
+				my $ex=$idx->{$gid}{$tid}{exon}[$i];
+				my $p=$e_start;
+				my $q=$ex->[1] - $ex->[0] + $p;
+				$e_start=$q+1;
+				push @$exon2, [ $ex->[0], $ex->[1], $p, $q];
+			}
+			# print Dumper $idx->{$gid}{$tid}{exon};
+			delete $idx->{$gid}{$tid}{exon};
+			$idx->{$gid}{$tid}{exon} = dclone $exon2;
+			# die Dumper $idx->{$gid}{$tid}{exon};
+		}
+	}
 	my $ofile=$file.'.index.hash';
 	printf "  writing indexed coordinate info to %s . . .\n", $ofile;
 	nstore($idx, $ofile);
@@ -72,7 +95,7 @@ sub ensembl_gtf_indexer {
 			'info' => "{ Hash ref for this gene as in GTF, Plus strand, start, end }",
 			'transcript' => {
 				"info" => "{ Hash ref for this transcript as in GTF, Plus start, end }",
-				"exon" => [ "total_length", ['start-exon1', 'end-exon1'], ['start-exon2', 'end-exon2'] ],
+				"exon" => [ "total_length", ['start-exon1', 'end-exon1', 'cdna-start', 'cdna-end'], ['start-exon2', 'end-exon2', 'cdna-start2', 'cdna-end2'] ],
 				"CDS" => [ "total_length", ['start-exon1', 'end-exon1'], ['start-exon2', 'end-exon2'] ],
 				"start_codon" => [ "total_length", ['start', 'end'] ],
 				"stop_codon" => [ "total_length", ['start', 'end'] ],
@@ -83,6 +106,7 @@ sub ensembl_gtf_indexer {
 		}
 	};
 	while (<$fh>) {
+		# last if $.==2000;
 		next if /^#/;
 		next if !/\S/;
 		chomp;
@@ -95,8 +119,11 @@ sub ensembl_gtf_indexer {
 			$attr->{start}=$c[3];
 			$attr->{end}=$c[4];
 			if ($c[2] eq 'gene') {
+				$attr->{chr}=$c[0];
 				$attr->{strand}=$c[6] eq "+"?1:2;
 				$idx->{$attr->{gene_id}}{info}=dclone $attr;
+				# die Dumper \@c;
+				# die Dumper $attr;
 			}
 			else {
 				$idx->{$attr->{gene_id}}{$attr->{transcript_id}}{info}=dclone $attr;
