@@ -57,7 +57,7 @@ if (-e $ofile and !$force) {
 }
 
 open (my $fh2, ">", $ofile);
-printf $fh2 "%s\n", join "\t", qw/chr transcript_id transcript_version gene_id gene_version/;
+printf $fh2 "%s\n", join "\t", qw/chr transcript_id transcript_version gene_id gene_version gene_name/;
 
 my $saved;
 open (my $fh, $infile);
@@ -72,7 +72,7 @@ while (<$fh>) {
 	# save trx info if new
 	if (!$saved->{$attr->{transcript_id}}) {
 		$saved->{$attr->{transcript_id}}=1;
-		printf $fh2 "%s\n", join "\t", ( $c[0], $attr->{transcript_id}, $attr->{transcript_version}, $attr->{gene_id}, $attr->{gene_version} );
+		printf $fh2 "%s\n", join "\t", ( $c[0], $attr->{transcript_id}, $attr->{transcript_version}, $attr->{gene_id}, $attr->{gene_version}, $attr->{gene_name}||'' );
 	}
 }
 
