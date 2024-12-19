@@ -13,6 +13,7 @@ our @EXPORT = qw/
 parse_gtf_attr
 convert_trx2gen
 convert_gen2trx
+map_pos_in_feat
 /;
 
 our @EXPORT_OK = qw//;
@@ -76,6 +77,69 @@ sub convert_gen2trx {
 		}
 	}
 	return 0; # all positions must >= 1
+}
+
+
+
+# find what elem a genomic position belongs to
+sub map_pos_in_feat {
+# note. because ensembl gtf annotates stop codon individually, this script will combine CDS and stop_codon as one feature.
+	my ($anno, $pos_gen, $strand)=@_;
+	# my $pinfo=[undef, undef, undef];
+	# if (!$anno or !$pos_gen or $pos_gen<=0) {
+		# return $pinfo;
+	# }
+
+	# the following elem should not overlap
+	foreach my $elem (qw/five_prime_utr  CDS  stop_codon  three_prime_utr/) {
+		next if !$anno->{$elem};
+		# die Dumper $anno->{five_prime_utr} if $anno->{five_prime_utr};
+		my $pinfo=map_pos_in_feat_one_elem($anno, $elem, $pos_gen, $strand);
+		if ($pinfo->[0]) {
+			return $pinfo;
+		}
+	}
+	return [undef,undef,undef];
+}
+
+sub map_pos_in_feat_one_elem {
+	my ($anno, $elem, $pos_gen, $strand)=@_;
+	my $pinfo=[undef,undef,undef];
+	if (!$anno->{$elem} or !$pos_gen or $pos_gen<=0) {
+		return $pinfo;
+	}
+	my $curr_elem_len=0; # total length of this element, from block-1 to block-current
+	foreach my $i (1.. ( (scalar @{$anno->{$elem}})-1 )  ) {
+		next if !$anno->{$elem}[$i]; # CDS may start from a later exon
+		if ($anno->{$elem}[$i][0]<=$pos_gen and $pos_gen<=$anno->{$elem}[$i][1]) { # in this block
+			my $cds_len=0;
+			# combine stop-codon into CDS
+			if ($elem eq 'stop_codon' or $elem eq 'CDS') {
+				$pinfo->[0]='CDS';
+				$pinfo->[1]=$anno->{CDS}[0]+3;
+				if ($elem eq 'stop_codon') {
+					$cds_len=$anno->{CDS}[0];
+				}
+			} else {
+				$pinfo->[0]=$elem;
+				$pinfo->[1]=$anno->{$elem}[0];
+			}
+
+			# calc in-elem pos
+			if ($strand eq '2') {
+				# q-x+1
+				$pinfo->[2]=$anno->{$elem}[$i][1]-$pos_gen+1+$cds_len+$curr_elem_len;
+			} else {
+				# x-p+1
+				$pinfo->[2]=$pos_gen-$anno->{$elem}[$i][0]+1+$cds_len+$curr_elem_len;
+			}
+			# die Dumper $pinfo, $pos_gen, $anno->{$elem};
+			# $ct++;
+			last;
+		}
+		$curr_elem_len+=$anno->{$elem}[$i][1] - $anno->{$elem}[$i][0] +1; # do this here
+	}
+	return $pinfo;
 }
 
 1;
