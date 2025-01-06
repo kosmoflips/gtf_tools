@@ -16,7 +16,7 @@ use GTFsupport;
 
 my $help;
 my ($infile,$ofile);
-my ($zero,$gid,$tid,$gpos,$tpos);
+my ($zero,$gid,$tid);
 my ($gtf_ensembl_hash, $gtf_custom_hash, $gtf_type);
 GetOptions(
 	"input=s{1}"=>\$infile,
@@ -24,8 +24,8 @@ GetOptions(
 	"zero"=>\$zero,
 	"gid"=>\$gid,
 	"tid"=>\$tid,
-	"gpos"=>\$gpos,
-	"tpos"=>\$tpos,
+	# "gpos"=>\$gpos,
+	# "tpos"=>\$tpos,
 	"ensembl=s{1}"=>\$gtf_ensembl_hash,
 	"gtf=s{1}"=>\$gtf_custom_hash,
 	"type=s{1}"=>\$gtf_type,
@@ -43,7 +43,6 @@ if (!$ofile) {
 	print "output file save path undefined\n";
 	$help=1;
 }
-open (my $fh2, ">", $ofile) or die "can't open output file, maybe the containing folder doesn't exist\n";
 
 if (!$gtf_ensembl_hash or $gtf_ensembl_hash!~/\.hash$/i or !-e $gtf_ensembl_hash) {
 	print "Ensembl GTF undefined or isn't a perl hash! Run `index_gtf.pl` first to save GTF to hash!\n";
@@ -67,11 +66,10 @@ if (($gid and $tid) or (!$gid and !$tid)) {
 	print "define either of [-gid] or [-tid]\n";
 	$help=1;
 }
-if (($gpos and $tpos) or (!$gpos and !$tpos)) {
-	print "define either of [-gpos] or [-tpos]\n";
-	$help=1;
-}
-
+# if (($gpos and $tpos) or (!$gpos and !$tpos)) {
+	# print "define either of [-gpos] or [-tpos]\n";
+	# $help=1;
+# }
 
 if ($help) {die <<USAGE;
 
@@ -87,8 +85,7 @@ if ($help) {die <<USAGE;
 ** GTF can be either *.gtf or *.index.hash by index_gtf.pl
 
 -- configs --
-[-gid OR -tid] # input file IDs are for genes or transcripts
-[-gpos OR -tpos] # input file positions are for genes or transcripts
+[-gid OR -tid] # input file ID and position info is linked to gene or transcript level
 [-zero] # input file positions are zero based.
 
 -- output --
@@ -102,6 +99,7 @@ if ($help) {die <<USAGE;
 USAGE
 }
 
+open (my $fh2, ">", $ofile) or die "can't open output file, maybe the containing folder doesn't exist\n";
 
 my $gtf_ensembl=retrieve($gtf_ensembl_hash);
 my $gtf_custom=retrieve($gtf_custom_hash) if $gtf_custom_hash;
@@ -134,7 +132,7 @@ while (<$fh>) {
 	# --- convert to gpos if tpos ---
 	my $pos_gen;
 	my $pos_trx;
-	if ($tpos) { # input is trx-related pos
+	if ($tid) { # input is tid, so using trx-related pos
 		if ($tinfo->{exon}) {
 			$pos_gen=GTFsupport::convert_trx2gen($tinfo->{exon}, $pos, $ginfo->{strand}||'');
 		}
