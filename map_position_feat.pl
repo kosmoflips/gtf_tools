@@ -82,8 +82,6 @@ if ($help) {die <<USAGE;
 [-gtf CUSTOM_GTF.hash] # if IDs in ENSEMBL_GTF does NOT correspond to input files, provide a custom GTF that links both input files and ENSEMBL_GTF. One example is StringTie de novo assembly GTF that has its own IDs while linking to Ensembl coordinates/annotations.
 [-type] # if CUSTOM_GTF is provided, specify its type. Currently only supports "stringtie".
 
-** GTF can be either *.gtf or *.index.hash by index_gtf.pl
-
 -- configs --
 [-gid OR -tid] # input file ID and position info is linked to gene or transcript level
 [-zero] # input file positions are zero based.
