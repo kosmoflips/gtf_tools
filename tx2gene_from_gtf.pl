@@ -71,8 +71,9 @@ while (<$fh>) {
 
 	# save trx info if new
 	if (!$saved->{$attr->{transcript_id}}) {
+		# die Dumper $saved;
 		$saved->{$attr->{transcript_id}}=1;
-		printf $fh2 "%s\n", join "\t", ( $c[0], $attr->{transcript_id}, $attr->{transcript_version}, $attr->{gene_id}, $attr->{gene_version}, $attr->{gene_name}||'' );
+		printf $fh2 "%s\n", join "\t", ( $c[0], $attr->{transcript_id}||'', $attr->{transcript_version}||'', $attr->{gene_id}||'', $attr->{gene_version}||'', $attr->{gene_name}||'' );
 	}
 }
 
