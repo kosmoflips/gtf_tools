@@ -65,23 +65,27 @@ if ($type eq 'ensembl') {
 	$idx=index_stringtie_gtf($gtf);
 }
 
-# --- map trx-related positions ---
+# --- map feat-related positions ---
 foreach my $gid (keys %{$idx}) {
 	next if $gid eq '_sample_';
 	foreach my $tid (keys %{$idx->{$gid}}) {
 		next if $tid eq 'info';
-		my $e_start=1;
-		my $exon2=[$idx->{$gid}{$tid}{exon}[0]];
-		foreach my $i (1..(scalar @{$idx->{$gid}{$tid}{exon}}-1)) { # [0] is total exon len
-			# plus/minus strands are the same calculation. because input exon A-ref is ordered by exon number
-			my $ex=$idx->{$gid}{$tid}{exon}[$i];
-			my $p=$e_start;
-			my $q=$ex->[1] - $ex->[0] + $p;
-			$e_start=$q+1;
-			push @$exon2, [ $ex->[0], $ex->[1], $p, $q];
+		foreach my $feat (keys %{$idx->{$gid}{$tid}}) {
+			next if $feat eq 'info';
+			my $e_start=1;
+			my $exon2=[$idx->{$gid}{$tid}{$feat}[0]];
+			foreach my $i (1..(scalar @{$idx->{$gid}{$tid}{$feat}}-1)) { # [0] is total feat len
+				# plus/minus strands are the same calculation. because input exon A-ref is ordered by exon number
+				my $ex=$idx->{$gid}{$tid}{$feat}[$i];
+				next if !$ex; # feat like CDS may not always start within 1st exon.
+				my $p=$e_start;
+				my $q=$ex->[1] - $ex->[0] + $p;
+				$e_start=$q+1;
+				push @$exon2, [ $ex->[0], $ex->[1], $p, $q];
+			}
+			delete $idx->{$gid}{$tid}{$feat};
+			$idx->{$gid}{$tid}{$feat} = dclone $exon2;
 		}
-		delete $idx->{$gid}{$tid}{exon};
-		$idx->{$gid}{$tid}{exon} = dclone $exon2;
 	}
 }
 
@@ -98,6 +102,7 @@ nstore($idx, $ofile);
 sub index_ensembl_gtf {
 	my ($gtffile, $testmode)=@_; # must be a stringtie-generated GTF
 	open (my $fh, $gtffile);
+	my $sampleid;
 	# with sample data structure
 	my $idx={};
 	while (<$fh>) {
@@ -143,11 +148,14 @@ sub index_ensembl_gtf {
 				} else { # existing item
 					push @{$idx->{$gid}{$tid}{$c[2]}}, [$c[3], $c[4]];
 				}
+				if (!$sampleid and $c[2] eq 'five_prime_utr') {
+					$sampleid=$gid;
+				}
 			}
 		}
 	}
 	# add sample gene ID
-	$idx->{_sample_}=$idx->{"ENSG00000160072"};
+	$idx->{_sample_}=$idx->{$sampleid};
 	return $idx;
 }
 

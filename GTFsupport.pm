@@ -63,7 +63,7 @@ sub convert_trx2gen {
 # convert genome-coordinates to transcript
 sub convert_gen2trx {
 	my ($exon_ref, $gen_site, $strand)=@_; # exon_ref, same as &convert_trx2gen
-	$strand=1 if !$strand;
+	# my $flen=$exon_ref->[0];
 	foreach my $i (1..(scalar(@$exon_ref)-1)) {
 		my $list=$exon_ref->[$i];
 		my ($g1,$g2)=($list->[0]<$list->[1]?($list->[0],$list->[1]) : ($list->[1],$list->[0]));
@@ -85,25 +85,25 @@ sub convert_gen2trx {
 sub map_pos_in_feat {
 # note. because ensembl gtf annotates stop codon individually, this script will combine CDS and stop_codon as one feature.
 	my ($anno, $pos_gen, $strand)=@_;
-	# my $pinfo=[undef, undef, undef];
-	# if (!$anno or !$pos_gen or $pos_gen<=0) {
-		# return $pinfo;
-	# }
-
-	# the following elem should not overlap
-	foreach my $elem (qw/five_prime_utr  CDS  stop_codon  three_prime_utr/) {
+	my $pinfo;
+	foreach my $elem (keys %{$anno}) {
+		next if $elem eq 'info';
 		next if !$anno->{$elem};
 		# die Dumper $anno->{five_prime_utr} if $anno->{five_prime_utr};
-		my $pinfo=map_pos_in_feat_one_elem($anno, $elem, $pos_gen, $strand);
-		if ($pinfo->[0]) {
-			return $pinfo;
+		# my $pinfo1=map_pos_in_feat_one_elem($anno, $elem, $pos_gen, $strand);
+		my $pinfo1=convert_gen2trx($anno->{$elem}, $pos_gen, $strand);
+		if ($pinfo1) {
+			$pinfo->{$elem}=[$anno->{$elem}[0], $pinfo1];
 		}
 	}
-	return [undef,undef,undef];
+	return $pinfo;
 }
 
-sub map_pos_in_feat_one_elem {
-	my ($anno, $elem, $pos_gen, $strand)=@_;
+
+
+# RETIRE
+sub map_pos_in_feat_one_elem { # essentially the same as gen2trx, but combine stop codon into CDS
+	my ($anno, $elem, $pos_gen, $strand, $merge_stop_to_cds)=@_;
 	my $pinfo=[undef,undef,undef];
 	if (!$anno->{$elem} or !$pos_gen or $pos_gen<=0) {
 		return $pinfo;
