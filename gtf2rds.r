@@ -21,7 +21,7 @@ opt_parser = OptionParser(option_list=list(
 		type="character",
 		default=NULL,
 		help="output dir path",
-		metavar="path/to/output_basename"
+		metavar="path/to/output_dir"
 	),
 	make_option(
 		c("--testline"),
@@ -40,7 +40,7 @@ if (is.null(opt$input_gtf)) {
 if (is.null(opt$output)) {
 	stop ('need output file path [-o]')
 } else {
-	odir = dirname(opt$output)
+	odir = opt$output
 	if (!dir.exists(odir)) {
 		dir.create(odir, recursive = T)
 	}
@@ -79,8 +79,10 @@ keepattr=c("gene_name","gene_id","gene_version","transcript_id","transcript_vers
 message('processing data . . .')
 
 d1=list()
+# d1b = data.frame()
+# for (i in 1:nrow(d0)) {
 for (i in 1:nrow(d0)) {
-# for (i in 1:100) {
+	print (i)
 	attr1=d0$attribute[i]
 	ax=str_split(attr1, ';\\s*')[[1]]
 	nlist=vector()
@@ -90,14 +92,32 @@ for (i in 1:nrow(d0)) {
 			next()
 		}
 		b1=str_split(a1, ' ')[[1]]
-		if (b1[1] %in% keepattr) {
+		
+		if (b1[1] == 'tag') {
+			# it's found that many ensembl GTF has info string like "tag CCDS, tag basic ...", so unless they are needed in the future, they're ignored for now.
+			next()
+		}
+		
+		# if (b1[1] %in% keepattr) {
 			nlist=append(nlist,b1[1])
 			vlist=append(vlist,b1[2])
-		}
+		# }
 	}
-	names(vlist) = nlist
-	v2=as.list(vlist)
+	
+	# names(vlist) = nlist
+	# v2=as.list(vlist)
+	v2=as.data.frame(t(as.data.frame(vlist)))
+	colnames(v2) = nlist
+	
+
+	# if ('transcript_id' %in% names(v2)) {
+	# 	if (v2$transcript_id != 'ENST00000400921') {
+	# 		next()
+	# 	}
+	# }
+	
 	d1[[i]] = v2
+	# d1b = bind_rows(d1b, v2)
 }
 d1b = bind_rows(d1)
 d0b = d0 %>% select(-attribute)
@@ -207,8 +227,11 @@ for (chrfilex in chrfiles) {
 		message('    ! file not found!')
 	}
 }
-masterfinal$feature = factor(masterfinal$feature)
 
-finalofile=paste0(opt$output,'.rds')
+for (c1 in c("chr", "feature", "strand", "gene_id", "gene_version", "transcript_id", "transcript_version", "gene_name", "gene_source", "gene_biotype", "transcript_name", "transcript_source", "transcript_biotype", "transcript_support_level", "protein_id", "ccds_id", "exon_number", "exon_version", "protein_version")) {
+	masterfinal[[c1]] = factor(masterfinal[[c1]])
+}
+
+finalofile=file.path(opt$output,'gtf_all_chr.rds')
 message('save to ', finalofile)
 saveRDS(masterfinal, finalofile)
